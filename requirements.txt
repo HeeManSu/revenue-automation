@@ -1,3 +1,4 @@
+
 fastapi
 uvicorn
 sqlmodel
@@ -7,3 +8,6 @@ pydantic
 google-generativeai
 celery
 redis
+pdfplumber
+docx2txt
+beautifulsoup4

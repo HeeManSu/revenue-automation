@@ -48,8 +48,8 @@ def revenue_recognition(self, contract_id: str, text_content: str, file_info: di
                 contract = Contract(
                     external_id=contract_id,
                     customer_name=extracted_data.customer,
-                    file_name=file_info.get("filename"),
-                    content_type=file_info.get("content_type"),
+                    file_name=file_info["filename"],
+                    content_type=file_info["content_type"],
                     raw_text=text_content,
                     extracted_json=extracted_json_data,
                     total_value=extracted_data.total_contract_value,
@@ -63,6 +63,7 @@ def revenue_recognition(self, contract_id: str, text_content: str, file_info: di
             session.commit()
             session.refresh(contract)
             
+            obligation_map = {}
             for obligation_data in extracted_data.performance_obligations:
                 obligation = ContractObligation(
                     contract_id=contract.id,
@@ -73,6 +74,8 @@ def revenue_recognition(self, contract_id: str, text_content: str, file_info: di
                     standalone_price=obligation_data.ssp,
                 )
                 session.add(obligation)
+                session.flush()
+                obligation_map[obligation_data.name] = obligation.id
             
             for schedule_entry in revenue_schedules:
                 period_start = schedule_entry.get('period_start')
@@ -83,8 +86,12 @@ def revenue_recognition(self, contract_id: str, text_content: str, file_info: di
                 if isinstance(period_end, str):
                     period_end = datetime.fromisoformat(period_end).date()
                 
+                obligation_name = schedule_entry.get('obligation_name', '')
+                obligation_id = obligation_map.get(obligation_name)
+                
                 revenue_schedule = RevenueSchedule(
                     contract_id=contract.id,
+                    obligation_id=obligation_id,
                     period_start=period_start,
                     period_end=period_end,
                     amount=schedule_entry.get('amount', 0.0),

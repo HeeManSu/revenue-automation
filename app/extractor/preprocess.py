@@ -7,8 +7,7 @@ RELEVANT_KEYWORDS = [
 
     # Who, When, Duration
     "Agreement", "Effective Date", "Commencement", "Start Date",
-    "Term", "Renewal", "Expiration", "Termination",
-    "Extension", "Parties", "Contract Period", "Initial Term", "Renewal Term",
+    "Term", "Renewal", "Expiration", "Termination", "Contract ID", "Agreement ID", "Extension", "Parties", "Contract Period", "Initial Term", "Renewal Term",
 
     # What is Promised
     "Scope", "Deliverables", "Obligations", "Performance Obligation",
@@ -77,23 +76,41 @@ MONEY_PATTERN = re.compile(
 
 def clean_text(text: str) -> str:
     """
-    Remove Page Numbers
-    Remove Extra NewLines
-    Remove Extra Spaces
+    Clean and normalize contract text for better processing.
     """
     
+    # Remove page numbers and headers
     text = re.sub(r'Page \d+ of \d+', '', text)
-    text = re.sub(r'\n+', '\n', text)
-    text = re.sub(r'\s{2,}', ' ', text)
+    text = re.sub(r'^\d+\s*$', '', text, flags=re.MULTILINE) 
     
-    return text
+    text = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)  # Add space between camelCase
+    text = re.sub(r'([a-z])(\d)', r'\1 \2', text)     # Add space between letters and numbers
+    text = re.sub(r'(\d)([A-Z])', r'\1 \2', text)     # Add space between numbers and letters
+    
+    # Normalize whitespace
+    text = re.sub(r'\n+', '\n', text)                 # Multiple newlines to single
+    text = re.sub(r'[ \t]+', ' ', text)               # Multiple spaces/tabs to single space
+    text = re.sub(r'\n ', '\n', text)                 # Remove leading spaces from lines
+    text = re.sub(r' \n', '\n', text)                 # Remove trailing spaces from lines
+    
+    # Clean up common PDF artifacts
+    text = re.sub(r'[^\x00-\x7F]+', ' ', text)        # Remove non-ASCII characters
+    text = re.sub(r'[^\w\s\.\,\;\:\!\?\-\(\)\$\%]', ' ', text)  # Keep only common punctuation
+    
+    return text.strip()
     
 def split_sections(text: str) -> List[dict]:
     """
     Splits the contract text into structured sections with titles.
+    Handles both markdown-style headers and numbered sections.
     """
 
-    pattern = r'(?m)^(#{1,6}\s*\**\s*\d+(?:\.\d+)*\.\s+[A-Za-z].*|SECTION\s+\d+[:\.\-]\s+[A-Z].*|[A-Z][A-Z\s,&\-()]+[:\.]?\s*$)'
+    # Pattern to match various section formats:
+    # 1. Numbered sections: "1. Parties", "2. Purpose and Overview", etc.
+    # 2. Markdown headers: "## Section Name"
+    # 3. All-caps headers: "SCOPE OF DELIVERABLES"
+    # 4. Section headers: "SECTION 1: Title"
+    pattern = r'(?m)^(?:#{1,6}\s*\**\s*)?(?:\d+(?:\.\d+)*\.\s+[A-Za-z].*|SECTION\s+\d+[:\.\-]\s+[A-Z].*|[A-Z][A-Z\s,&\-()]+[:\.]?\s*$|Schedule\s+[A-Z][:\.\-]?\s*[A-Z].*)'
     matches = list(re.finditer(pattern, text))
     sections = []
 
@@ -102,6 +119,7 @@ def split_sections(text: str) -> List[dict]:
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
         title = match.group().strip()
         content = text[start:end].strip()
+        
         if len(content) > 50:
             sections.append({"title": title, "content": content})
 

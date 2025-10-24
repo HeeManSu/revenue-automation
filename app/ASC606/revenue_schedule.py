@@ -47,7 +47,7 @@ class RevenueScheduleGenerator:
                 milestone_amount = milestone.get("value", 0)
                 revenue_entry = RevenueScheduleModel(
                     contract_id=self.contract_data["contract_id"],
-                    obligation_name=f"{obligation.name} - {milestone['name']}",
+                    obligation_name=obligation.name,
                     period_start=effective_date,
                     period_end=effective_date,
                     amount=round(milestone_amount, 2),
@@ -57,7 +57,6 @@ class RevenueScheduleGenerator:
                 )
                 self.revenue_schedule.append(revenue_entry)
         else:
-            # Single point-in-time recognition
             revenue_entry = RevenueScheduleModel(
                 contract_id=self.contract_data["contract_id"],
                 obligation_name=obligation.name,

@@ -29,9 +29,10 @@ def get_revenue_recognition_prompt(contract_text: str) -> str:
     - Use exact field names and types from schema
     - Dates must be YYYY-MM-DD format
     - Numbers must be actual numbers, not strings
-    - use null for missing optional fields
+    - Use null for missing optional fields
     - There can be only two types of performance obligations: over_time and point_in_time
     - There can be only two types of discounts: global and obligation_specific
     - If the revenue recognition is not monthly, quarterly or yearly, it should be in the format of "every_<number_of_days>"
+    - If you cannot find specific information in the contract text, use "NOT_PROVIDED" as the value, not null
     """
     

@@ -5,6 +5,7 @@ from sqlmodel import select
 from app.db import init_db, get_session
 from app.models import Contract, ContractObligation, RevenueSchedule, AuditMessage
 from app.jobs import revenue_recognition
+from app.utils.file_processor import FileProcessor
 import uuid
 
 @asynccontextmanager
@@ -50,27 +51,15 @@ async def upload_contract(file: UploadFile = File(...)):
     """
     file_bytes = await file.read()
     
-    try:
-        text_content = file_bytes.decode('utf-8')
-    except UnicodeDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid file format")
-    
-    file_info = {
-        "filename": file.filename,
-        "content_type": file.content_type,
-        "size_in_kb": round(len(file_bytes) / 1024, 2),
-        "line_count": len(text_content.splitlines()),
-        "character_count": len(text_content),
-    }
-    
+    text_content, file_info = FileProcessor.extract_text(file_bytes, file.filename, file.content_type)
     contract_id = str(uuid.uuid4())
     
     try:
         with next(get_session()) as session:
             contract = Contract(
                 external_id=contract_id,
-                file_name=file.filename,
-                content_type=file.content_type,
+                file_name=file_info["filename"],
+                content_type=file_info["content_type"],
                 raw_text=text_content,
                 status="uploaded"
             )
@@ -145,20 +134,51 @@ def get_contract(contract_id: int):
         return contract
 
 @app.get("/contracts/{contract_id}/revenue-schedules")
-def get_revenue_schedules(contract_id: int):
-    """Get revenue schedules for a contract"""
+def get_revenue_schedules(contract_id: str):
+    """Get revenue schedules for a contract with obligation information"""
     with next(get_session()) as session:
+        contract = session.query(Contract).filter(Contract.external_id == contract_id).first()
+        if not contract:
+            raise HTTPException(status_code=404, detail="Contract not found")
+        
         schedules = session.exec(
-            select(RevenueSchedule).where(RevenueSchedule.contract_id == contract_id)
+            select(RevenueSchedule, ContractObligation)
+            .join(ContractObligation, RevenueSchedule.obligation_id == ContractObligation.id, isouter=True)
+            .where(RevenueSchedule.contract_id == contract.id)
         ).all()
-        return schedules
+        
+        result = []
+        for schedule, obligation in schedules:
+            schedule_data = {
+                "id": schedule.id,
+                "contract_id": schedule.contract_id,
+                "obligation_id": schedule.obligation_id,
+                "period_start": schedule.period_start,
+                "period_end": schedule.period_end,
+                "amount": schedule.amount,
+                "recognized": schedule.recognized,
+                "created_at": schedule.created_at,
+                "obligation": {
+                    "id": obligation.id if obligation else None,
+                    "name": obligation.name if obligation else "Unknown",
+                    "type": obligation.type if obligation else None,
+                    "recognition_method": obligation.recognition_method if obligation else None
+                } if obligation else None
+            }
+            result.append(schedule_data)
+        
+        return result
 
 @app.get("/contracts/{contract_id}/audit-memos")
-def get_audit_memos(contract_id: int):
+def get_audit_memos(contract_id: str):
     """Get audit memos for a contract"""
     with next(get_session()) as session:
+        contract = session.query(Contract).filter(Contract.external_id == contract_id).first()
+        if not contract:
+            raise HTTPException(status_code=404, detail="Contract not found")
+        
         memos = session.exec(
-            select(AuditMessage).where(AuditMessage.contract_id == contract_id)
+            select(AuditMessage).where(AuditMessage.contract_id == contract.id)
         ).all()
         return memos
 
