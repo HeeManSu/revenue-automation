@@ -15,14 +15,23 @@ export interface Contract {
   updated_at: string;
 }
 
+export interface Obligation {
+  id: number | null;
+  name: string;
+  type: string | null;
+  recognition_method: string | null;
+}
+
 export interface RevenueSchedule {
   id: number;
   contract_id: number;
+  obligation_id?: number | null;
   period_start?: string;
   period_end?: string;
   amount?: number;
   recognized: boolean;
   created_at: string;
+  obligation?: Obligation | null;
 }
 
 export interface AuditMemo {
@@ -91,15 +100,29 @@ export class ApiService {
   }
 
   static async getRevenueSchedules(
-    contractId: number
+    contractId: string
   ): Promise<RevenueSchedule[]> {
     return this.request<RevenueSchedule[]>(
       `/contracts/${contractId}/revenue-schedules`
     );
   }
 
-  static async getAuditMemos(contractId: number): Promise<AuditMemo[]> {
+  static async getAuditMemos(contractId: string): Promise<AuditMemo[]> {
     return this.request<AuditMemo[]>(`/contracts/${contractId}/audit-memos`);
+  }
+
+  static async getStructuredAuditMemo(contractId: string): Promise<any> {
+    try {
+      return await this.request<any>(
+        `/contracts/${contractId}/audit-memos/structured`
+      );
+    } catch (error) {
+      console.error(
+        `Failed to fetch structured memo for contract ${contractId}:`,
+        error
+      );
+      throw error;
+    }
   }
 
   static async getContractStatus(contractId: string): Promise<ContractStatus> {

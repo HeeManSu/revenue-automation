@@ -1,5 +1,7 @@
 import React, { useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { ApiService } from "../services/api";
+import { UploadIcon, CheckIcon, XIcon } from "../assets/icons";
 
 interface ContractUploadProps {
   onUploadSuccess: () => void;
@@ -8,6 +10,7 @@ interface ContractUploadProps {
 export const ContractUpload: React.FC<ContractUploadProps> = ({
   onUploadSuccess,
 }) => {
+  const navigate = useNavigate();
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<
@@ -135,47 +138,11 @@ export const ContractUpload: React.FC<ContractUploadProps> = ({
             {isUploading ? (
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
             ) : uploadStatus === "success" ? (
-              <svg
-                className="w-12 h-12 text-success-500 mx-auto"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
+              <CheckIcon className="w-12 h-12 text-success-500 mx-auto" />
             ) : uploadStatus === "error" ? (
-              <svg
-                className="w-12 h-12 text-danger-500 mx-auto"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <XIcon className="w-12 h-12 text-danger-500 mx-auto" />
             ) : (
-              <svg
-                className="w-12 h-12 text-gray-400 mx-auto"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                />
-              </svg>
+              <UploadIcon className="w-12 h-12 text-gray-400 mx-auto" />
             )}
           </div>
 
@@ -199,15 +166,6 @@ export const ContractUpload: React.FC<ContractUploadProps> = ({
                 : "Drag and drop your contract here, or click to browse"}
             </p>
           </div>
-
-          {uploadStatus === "success" && (
-            <button
-              onClick={() => setUploadStatus("idle")}
-              className="text-sm text-primary-600 hover:text-primary-500 font-medium"
-            >
-              Upload another contract
-            </button>
-          )}
         </div>
       </div>
 
@@ -217,6 +175,29 @@ export const ContractUpload: React.FC<ContractUploadProps> = ({
         <br />
         Maximum file size: 10MB
       </div>
+
+      {uploadStatus === "success" && (
+        <div className="flex flex-col sm:flex-row gap-3 mt-6 justify-center">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate("/dashboard");
+            }}
+            className="bg-blue-600 text-white px-6 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            Go to Dashboard
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setUploadStatus("idle");
+            }}
+            className="bg-gray-100 text-gray-700 px-6 py-2 rounded-md text-sm font-medium hover:bg-gray-200 transition-colors"
+          >
+            Upload another contract
+          </button>
+        </div>
+      )}
     </div>
   );
 };
