@@ -1,0 +1,130 @@
+"""
+Revenue Recognition Background Job
+
+This module defines the background task responsible for running the full
+revenue recognition workflow. It handles contract data extraction,
+applies ASC 606 accounting logic, and generates the corresponding
+audit memo for documentation.
+"""
+
+from .celery_config import celery_app
+from app.db import get_session
+from app.models import Contract, ContractObligation, RevenueSchedule, AuditMessage
+from app.extractor.llm_extractor import extract_contract_data
+from app.ASC606 import revenue_recognition as asc606_revenue_recognition
+from app.audit_memo import generate_audit_memo
+from datetime import datetime
+import json
+
+@celery_app.task(bind=True, name="revenue_recognition")
+def revenue_recognition(self, contract_id: str, text_content: str, file_info: dict):
+    """
+    Process the contract data through the full revenue recognition pipeline.
+    
+    """
+    try:
+        print(f"Starting revenue recognition processing for contract: {contract_id}")
+        
+        extracted_data = extract_contract_data(text_content, contract_id)
+        print(f"Extracted data")
+        revenue_result = asc606_revenue_recognition(extracted_data.model_dump())     
+        print(f"Revenue result:")
+        audit_memo = generate_audit_memo(extracted_data.model_dump(), revenue_result)    
+        revenue_schedules = revenue_result.get('revenue_schedule', [])
+        print(f"Audit memo:")
+        with next(get_session()) as session:
+            contract = session.query(Contract).filter(Contract.external_id == contract_id).first()
+            extracted_json_data = extracted_data.model_dump(mode='json')
+            
+            if contract:
+                contract.customer_name = extracted_data.customer
+                contract.extracted_json = extracted_json_data
+                contract.total_value = extracted_data.total_contract_value
+                contract.currency = extracted_data.currency
+                contract.start_date = extracted_data.effective_date
+                contract.end_date = extracted_data.end_date
+                contract.status = "processed"
+            else:
+                contract = Contract(
+                    external_id=contract_id,
+                    customer_name=extracted_data.customer,
+                    file_name=file_info.get("filename"),
+                    content_type=file_info.get("content_type"),
+                    raw_text=text_content,
+                    extracted_json=extracted_json_data,
+                    total_value=extracted_data.total_contract_value,
+                    currency=extracted_data.currency,
+                    start_date=extracted_data.effective_date,
+                    end_date=extracted_data.end_date,
+                    status="processed"
+                )
+                session.add(contract)
+            
+            session.commit()
+            session.refresh(contract)
+            
+            for obligation_data in extracted_data.performance_obligations:
+                obligation = ContractObligation(
+                    contract_id=contract.id,
+                    name=obligation_data.name,
+                    type=obligation_data.type,
+                    allocated_amount=obligation_data.allocated_value,
+                    recognition_method=obligation_data.revenue_recognition_method,
+                    standalone_price=obligation_data.ssp,
+                )
+                session.add(obligation)
+            
+            for schedule_entry in revenue_schedules:
+                period_start = schedule_entry.get('period_start')
+                period_end = schedule_entry.get('period_end')
+                
+                if isinstance(period_start, str):
+                    period_start = datetime.fromisoformat(period_start).date()
+                if isinstance(period_end, str):
+                    period_end = datetime.fromisoformat(period_end).date()
+                
+                revenue_schedule = RevenueSchedule(
+                    contract_id=contract.id,
+                    period_start=period_start,
+                    period_end=period_end,
+                    amount=schedule_entry.get('amount', 0.0),
+                    recognized=schedule_entry.get('status') == 'recognized'
+                )
+                session.add(revenue_schedule)
+            
+            audit_message = AuditMessage(
+                contract_id=contract.id,
+                memo_text=audit_memo
+            )
+            session.add(audit_message)
+            
+            session.commit()
+            
+            revenue_schedule_count = len(revenue_schedules)
+            print(f"Successfully processed contract {contract_id} with {revenue_schedule_count} schedule entries")
+            
+            return {
+                "status": "success",
+                "contract_id": contract_id,
+                "message": "Contract processed successfully",
+                "revenue_processing": {
+                    "total_schedule_entries": revenue_schedule_count,
+                    "performance_obligations": len(revenue_result.get('performance_obligations', [])),
+                    "total_contract_value": revenue_result.get('total_contract_value', 0),
+                    "audit_memo_length": len(audit_memo)
+                }
+            }
+            
+    except Exception as e:
+        print(f"Error processing contract {contract_id}: {str(e)}")
+        
+        try:
+            with next(get_session()) as session:
+                contract = session.query(Contract).filter(Contract.external_id == contract_id).first()
+                if contract:
+                    contract.status = "failed"
+                    session.commit()
+        except Exception as db_error:
+            print(f"Error updating contract status: {str(db_error)}")
+        
+        # raise self.retry(exc=e, countdown=60, max_retries=0)
