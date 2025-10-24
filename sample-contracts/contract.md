@@ -120,7 +120,7 @@ In consideration for the access to and use of the Software and the performance o
 | Training and Certification     | $10,000              | Upon completion of the final training session                                  | Point-in-time            |
 | AI Analytics Add-On (Optional) | $35,000              | Monthly, beginning on activation date                                          | Over time                |
 
-**Total Contract Value:** USD $365,000 (excluding optional modules and applicable taxes).
+**Total Contract Value:** USD $330,000 (excluding optional modules and applicable taxes).
 
 ---
 
