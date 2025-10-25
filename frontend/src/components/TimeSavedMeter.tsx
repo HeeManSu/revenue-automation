@@ -51,7 +51,7 @@ export const TimeSavedMeter: React.FC<TimeSavedMeterProps> = ({
           <span className="text-sm font-medium">
             Estimated {formatTime(timeSavedHours)} of manual review saved
           </span>
-          <span className="text-xs opacity-75">AI automation ROI</span>
+          <span className="text-xs ml-20 opacity-75">AI automation ROI</span>
         </div>
       </div>
     </div>

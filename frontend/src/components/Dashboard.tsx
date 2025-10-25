@@ -358,8 +358,8 @@ export const Dashboard: React.FC = () => {
                         </div>
                         <div className="text-center mt-3">
                           <p className="text-sm text-gray-600">
-                            🎉 Contract processing complete! Your automation ROI
-                            is showing.
+                            Contract processing complete! Your automation ROI is
+                            showing.
                           </p>
                         </div>
                       </div>

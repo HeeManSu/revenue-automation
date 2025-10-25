@@ -93,6 +93,44 @@ export class ApiService {
     return response.json();
   }
 
+  static async uploadSampleContract(
+    contractId: string
+  ): Promise<{ message: string }> {
+    const sampleFiles = {
+      acme: "sample-contracts/contract.md",
+      neuraxis: "sample-contracts/MAX_NEURAXIS_2025.md",
+      omega: "sample-contracts/MAX_OMEGA_2025.md",
+    };
+
+    if (!sampleFiles[contractId as keyof typeof sampleFiles]) {
+      throw new Error(`Invalid contract ID: ${contractId}`);
+    }
+
+    const filePath = sampleFiles[contractId as keyof typeof sampleFiles];
+
+    try {
+      const response = await fetch(`/${filePath}`);
+      if (!response.ok) {
+        throw new Error(`Failed to load sample file: ${response.statusText}`);
+      }
+
+      const content = await response.text();
+      const filename = filePath.split("/").pop() || "contract.md";
+
+      const file = new File([content], filename, {
+        type: "text/markdown",
+      });
+
+      return this.uploadContract(file);
+    } catch (error) {
+      throw new Error(
+        `Failed to load sample contract: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
   static async getContracts(): Promise<Contract[]> {
     return this.request<Contract[]>("/contracts");
   }

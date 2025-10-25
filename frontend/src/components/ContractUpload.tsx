@@ -5,10 +5,16 @@ import { UploadIcon, CheckIcon, XIcon } from "../assets/icons";
 
 interface ContractUploadProps {
   onUploadSuccess: () => void;
+  uploadStatus?: "idle" | "success" | "error";
+  errorMessage?: string;
+  isUploading?: boolean;
 }
 
 export const ContractUpload: React.FC<ContractUploadProps> = ({
   onUploadSuccess,
+  uploadStatus: externalUploadStatus,
+  errorMessage: externalErrorMessage,
+  isUploading: externalIsUploading,
 }) => {
   const navigate = useNavigate();
   const [isDragOver, setIsDragOver] = useState(false);
@@ -17,6 +23,12 @@ export const ContractUpload: React.FC<ContractUploadProps> = ({
     "idle" | "success" | "error"
   >("idle");
   const [errorMessage, setErrorMessage] = useState("");
+
+  // Use external state if provided, otherwise use internal state
+  const currentUploadStatus = externalUploadStatus || uploadStatus;
+  const currentErrorMessage = externalErrorMessage || errorMessage;
+  const currentIsUploading =
+    externalIsUploading !== undefined ? externalIsUploading : isUploading;
 
   const handleFileUpload = useCallback(
     async (file: File) => {
@@ -56,21 +68,29 @@ export const ContractUpload: React.FC<ContractUploadProps> = ({
         return;
       }
 
-      setIsUploading(true);
-      setUploadStatus("idle");
-      setErrorMessage("");
+      if (externalIsUploading === undefined) {
+        setIsUploading(true);
+        setUploadStatus("idle");
+        setErrorMessage("");
+      }
 
       try {
         await ApiService.uploadContract(file);
-        setUploadStatus("success");
+        if (externalUploadStatus === undefined) {
+          setUploadStatus("success");
+        }
         onUploadSuccess();
       } catch (error) {
-        setErrorMessage(
-          error instanceof Error ? error.message : "Upload failed"
-        );
-        setUploadStatus("error");
+        if (externalUploadStatus === undefined) {
+          setErrorMessage(
+            error instanceof Error ? error.message : "Upload failed"
+          );
+          setUploadStatus("error");
+        }
       } finally {
-        setIsUploading(false);
+        if (externalIsUploading === undefined) {
+          setIsUploading(false);
+        }
       }
     },
     [onUploadSuccess]
@@ -112,12 +132,12 @@ export const ContractUpload: React.FC<ContractUploadProps> = ({
   return (
     <div className="w-full max-w-2xl mx-auto">
       <div
-        className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+        className={`relative border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
           isDragOver
             ? "border-primary-500 bg-primary-50"
-            : uploadStatus === "success"
+            : currentUploadStatus === "success"
             ? "border-success-500 bg-success-50"
-            : uploadStatus === "error"
+            : currentUploadStatus === "error"
             ? "border-danger-500 bg-danger-50"
             : "border-gray-300 hover:border-gray-400"
         }`}
@@ -130,39 +150,39 @@ export const ContractUpload: React.FC<ContractUploadProps> = ({
           accept=".pdf,.doc,.docx,.txt,.md"
           onChange={handleFileInput}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          disabled={isUploading}
+          disabled={currentIsUploading}
         />
 
-        <div className="space-y-4">
-          <div className="mx-auto w-12 h-12">
-            {isUploading ? (
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
-            ) : uploadStatus === "success" ? (
-              <CheckIcon className="w-12 h-12 text-success-500 mx-auto" />
-            ) : uploadStatus === "error" ? (
-              <XIcon className="w-12 h-12 text-danger-500 mx-auto" />
+        <div className="space-y-3">
+          <div className="mx-auto w-10 h-10">
+            {currentIsUploading ? (
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500"></div>
+            ) : currentUploadStatus === "success" ? (
+              <CheckIcon className="w-10 h-10 text-success-500 mx-auto" />
+            ) : currentUploadStatus === "error" ? (
+              <XIcon className="w-10 h-10 text-danger-500 mx-auto" />
             ) : (
-              <UploadIcon className="w-12 h-12 text-gray-400 mx-auto" />
+              <UploadIcon className="w-10 h-10 text-gray-400 mx-auto" />
             )}
           </div>
 
           <div>
-            <h3 className="text-lg font-medium text-gray-900">
-              {isUploading
+            <h3 className="text-base font-medium text-gray-900">
+              {currentIsUploading
                 ? "Uploading contract..."
-                : uploadStatus === "success"
+                : currentUploadStatus === "success"
                 ? "Contract uploaded successfully!"
-                : uploadStatus === "error"
+                : currentUploadStatus === "error"
                 ? "Upload failed"
                 : "Upload Contract"}
             </h3>
             <p className="text-sm text-gray-500 mt-1">
-              {isUploading
+              {currentIsUploading
                 ? "Please wait while we process your contract"
-                : uploadStatus === "success"
+                : currentUploadStatus === "success"
                 ? "Your contract is being processed for revenue recognition"
-                : uploadStatus === "error"
-                ? errorMessage
+                : currentUploadStatus === "error"
+                ? currentErrorMessage
                 : "Drag and drop your contract here, or click to browse"}
             </p>
           </div>
@@ -176,7 +196,7 @@ export const ContractUpload: React.FC<ContractUploadProps> = ({
         Maximum file size: 10MB
       </div>
 
-      {uploadStatus === "success" && (
+      {currentUploadStatus === "success" && (
         <div className="flex flex-col sm:flex-row gap-3 mt-6 justify-center">
           <button
             onClick={(e) => {
@@ -190,7 +210,9 @@ export const ContractUpload: React.FC<ContractUploadProps> = ({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setUploadStatus("idle");
+              if (externalUploadStatus === undefined) {
+                setUploadStatus("idle");
+              }
             }}
             className="bg-gray-100 text-gray-700 px-6 py-2 rounded-md text-sm font-medium hover:bg-gray-200 transition-colors"
           >
