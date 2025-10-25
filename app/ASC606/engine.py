@@ -59,6 +59,7 @@ class ASC606Engine:
             } for revenue_schedule in self.revenue_schedule],
             "total_discount_amount": self.discount_handler.total_discount_amount,
             "discounts_applied": len(self.discount_handler.discounts),
+            "performance_obligations_count": len(self.performance_obligations),
         }
         
                

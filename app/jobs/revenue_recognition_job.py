@@ -14,7 +14,21 @@ from app.extractor.llm_extractor import extract_contract_data
 from app.ASC606 import revenue_recognition as asc606_revenue_recognition
 from app.audit_memo import generate_audit_memo
 from datetime import datetime
-import json
+
+def calculate_time_saved(performance_obligations: int, revenue_schedules: int, audit_memo_length: int, contract_value: float) -> float:
+    """
+    Calculate estimated time saved in hours based on contract complexity.
+    """
+    
+    base_time = 1.0  # Base time
+    obligation_time = performance_obligations * 0.75  # 0.75 hours per obligation
+    schedule_time = revenue_schedules * 0.08  # 0.08 hours per revenue schedule entry
+    memo_time = min(audit_memo_length / 2000, 1.0)  # 1 hour for long memos (2000 chars)
+    value_complexity = min(contract_value / 100000, 1.0)  # 1 hour if contract > $100K
+    
+    total_time = base_time + obligation_time + schedule_time + memo_time + value_complexity
+    
+    return round(total_time * 4) / 4;
 
 @celery_app.task(bind=True, name="revenue_recognition")
 def revenue_recognition(self, contract_id: str, text_content: str, file_info: dict):
@@ -32,6 +46,18 @@ def revenue_recognition(self, contract_id: str, text_content: str, file_info: di
         audit_memo = generate_audit_memo(extracted_data.model_dump(), revenue_result)    
         revenue_schedules = revenue_result.get('revenue_schedule', [])
         print(f"Audit memo:")
+        
+        revenue_schedule_count = len(revenue_schedules)
+        performance_obligations_count = revenue_result.get('performance_obligations_count', 0)
+        time_saved_hours = calculate_time_saved(
+            performance_obligations_count, 
+            revenue_schedule_count, 
+            len(audit_memo),
+            extracted_data.total_contract_value or 0
+        )
+        
+        print(f"Time saved hours: {time_saved_hours}")
+        
         with next(get_session()) as session:
             contract = session.query(Contract).filter(Contract.external_id == contract_id).first()
             extracted_json_data = extracted_data.model_dump(mode='json')
@@ -44,6 +70,7 @@ def revenue_recognition(self, contract_id: str, text_content: str, file_info: di
                 contract.start_date = extracted_data.effective_date
                 contract.end_date = extracted_data.end_date
                 contract.status = "processed"
+                contract.time_saved_hours = time_saved_hours
             else:
                 contract = Contract(
                     external_id=contract_id,
@@ -56,7 +83,8 @@ def revenue_recognition(self, contract_id: str, text_content: str, file_info: di
                     currency=extracted_data.currency,
                     start_date=extracted_data.effective_date,
                     end_date=extracted_data.end_date,
-                    status="processed"
+                    status="processed",
+                    time_saved_hours=time_saved_hours
                 )
                 session.add(contract)
             
@@ -116,9 +144,10 @@ def revenue_recognition(self, contract_id: str, text_content: str, file_info: di
                 "message": "Contract processed successfully",
                 "revenue_processing": {
                     "total_schedule_entries": revenue_schedule_count,
-                    "performance_obligations": len(revenue_result.get('performance_obligations', [])),
+                    "performance_obligations": performance_obligations_count,
                     "total_contract_value": revenue_result.get('total_contract_value', 0),
-                    "audit_memo_length": len(audit_memo)
+                    "audit_memo_length": len(audit_memo),
+                    "time_saved_hours": time_saved_hours
                 }
             }
             

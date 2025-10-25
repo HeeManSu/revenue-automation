@@ -17,6 +17,7 @@ class Contract(SQLModel, table=True):
     start_date: Optional[date]
     end_date: Optional[date]
     status: str = Field(default="uploaded")
+    time_saved_hours: Optional[float]
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     

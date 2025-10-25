@@ -64,45 +64,28 @@ async def upload_contract(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Error uploading contract: {str(e)}")
 
 
-@app.get("/contracts/{contract_id}/status")
-def get_contract_status(contract_id: str):
-    try:
-        with next(get_session()) as session:
-            contract = session.query(Contract).filter(Contract.external_id == contract_id).first()
-            
-            if not contract:
-                raise HTTPException(status_code=404, detail="Contract not found")
-            
-            return {
-                "contract_id": contract_id,
-                "status": contract.status,
-                "file_name": contract.file_name,
-                "created_at": contract.created_at,
-                "updated_at": contract.updated_at,
-                "customer_name": contract.customer_name,
-                "total_value": contract.total_value,
-                "currency": contract.currency
-            }
-            
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving contract status: {str(e)}")
-
-
 @app.get("/contracts")
 def get_contracts():
     with next(get_session()) as session:
         contracts = session.exec(select(Contract)).all()
-        return contracts
-
-@app.get("/contracts/{contract_id}")
-def get_contract(contract_id: int):
-    with next(get_session()) as session:
-        contract = session.get(Contract, contract_id)
-        if not contract:
-            raise HTTPException(status_code=404, detail="Contract not found")
-        return contract
+        return [
+            {
+                "id": contract.id,
+                "external_id": contract.external_id,
+                "customer_name": contract.customer_name,
+                "file_name": contract.file_name,
+                "content_type": contract.content_type,
+                "total_value": contract.total_value,
+                "currency": contract.currency,
+                "start_date": contract.start_date,
+                "end_date": contract.end_date,
+                "status": contract.status,
+                "time_saved_hours": contract.time_saved_hours,
+                "created_at": contract.created_at,
+                "updated_at": contract.updated_at
+            }
+            for contract in contracts
+        ]
 
 @app.get("/contracts/{contract_id}/revenue-schedules")
 def get_revenue_schedules(contract_id: str):

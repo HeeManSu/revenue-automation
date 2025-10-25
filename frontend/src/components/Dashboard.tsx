@@ -14,6 +14,14 @@ import { DashboardHeader } from "./dashboard/DashboardHeader";
 import { NoContractSelected } from "./dashboard/NoContractSelected";
 import { ErrorState } from "./dashboard/ErrorState";
 import { LoadingState } from "./dashboard/LoadingState";
+import { TimeSavedMeter } from "./TimeSavedMeter";
+import {
+  ArrowLeftIcon,
+  DocumentIcon,
+  CheckCircleOutlineIcon,
+  ClockIcon,
+  DollarIcon,
+} from "../assets/icons";
 
 export const Dashboard: React.FC = () => {
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -31,6 +39,7 @@ export const Dashboard: React.FC = () => {
   const [selectedMemo, setSelectedMemo] = useState<any>(null);
   const [showDetailedMemo, setShowDetailedMemo] = useState(false);
   const [structuredMemos, setStructuredMemos] = useState<any[]>([]);
+  const [totalTimeSaved, setTotalTimeSaved] = useState(0);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -46,6 +55,7 @@ export const Dashboard: React.FC = () => {
       try {
         const updatedContracts = await ApiService.getContracts();
         setContracts(updatedContracts);
+        setTotalTimeSaved(calculateTotalTimeSaved(updatedContracts));
       } catch (err) {
         console.error("Error polling contracts:", err);
       }
@@ -60,12 +70,23 @@ export const Dashboard: React.FC = () => {
     return () => clearInterval(pollInterval);
   }, [contracts.length]);
 
+  const calculateTotalTimeSaved = (contracts: Contract[]) => {
+    return contracts
+      .filter(
+        (contract) =>
+          contract.status === "processed" && contract.time_saved_hours
+      )
+      .reduce((total, contract) => total + (contract.time_saved_hours || 0), 0);
+  };
+
   const loadContracts = async () => {
     try {
       setLoading(true);
       setError("");
       const contractsData = await ApiService.getContracts();
       setContracts(contractsData);
+      setTotalTimeSaved(calculateTotalTimeSaved(contractsData));
+      console.log("Total time saved:", totalTimeSaved);
     } catch (err) {
       setError("Failed to load contracts");
       console.error("Error loading contracts:", err);
@@ -79,6 +100,7 @@ export const Dashboard: React.FC = () => {
       setRefreshing(true);
       const contractsData = await ApiService.getContracts();
       setContracts(contractsData);
+      setTotalTimeSaved(calculateTotalTimeSaved(contractsData));
     } catch (err) {
       setError("Failed to refresh contracts");
       console.error("Error refreshing contracts:", err);
@@ -233,19 +255,7 @@ export const Dashboard: React.FC = () => {
             onClick={() => setShowDetailedMemo(false)}
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
           >
-            <svg
-              className="w-4 h-4 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              />
-            </svg>
+            <ArrowLeftIcon className="w-4 h-4 mr-2" />
             Back to Dashboard
           </button>
         </div>
@@ -263,6 +273,55 @@ export const Dashboard: React.FC = () => {
             refreshing={refreshing}
             onRefresh={refreshContracts}
           />
+
+          {/* Summary Stats Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {/* Total Contracts */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center hover:shadow-md transition-shadow duration-200">
+              <div className="flex items-center justify-center mb-2">
+                <DocumentIcon className="w-5 h-5 text-gray-400" />
+              </div>
+              <h3 className="text-sm text-gray-500 mb-1">Total Contracts</h3>
+              <p className="text-2xl font-semibold text-gray-900">
+                {contracts.length}
+              </p>
+            </div>
+
+            {/* Processed Contracts */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center hover:shadow-md transition-shadow duration-200">
+              <div className="flex items-center justify-center mb-2">
+                <CheckCircleOutlineIcon className="w-5 h-5 text-green-400" />
+              </div>
+              <h3 className="text-sm text-gray-500 mb-1">Processed</h3>
+              <p className="text-2xl font-semibold text-green-600">
+                {contracts.filter((c) => c.status === "processed").length}
+              </p>
+            </div>
+
+            {/* Hours Saved */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center hover:shadow-md transition-shadow duration-200">
+              <div className="flex items-center justify-center mb-2">
+                <ClockIcon className="w-5 h-5 text-blue-400" />
+              </div>
+              <h3 className="text-sm text-gray-500 mb-1">Hours Saved</h3>
+              <p className="text-2xl font-semibold text-blue-600">
+                {totalTimeSaved > 0 ? `${totalTimeSaved} hrs` : "0 hrs"}
+              </p>
+            </div>
+
+            {/* AI ROI */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center hover:shadow-md transition-shadow duration-200">
+              <div className="flex items-center justify-center mb-2">
+                <DollarIcon className="w-5 h-5 text-purple-400" />
+              </div>
+              <h3 className="text-sm text-gray-500 mb-1">Cost Savings</h3>
+              <p className="text-2xl font-semibold text-purple-600">
+                {totalTimeSaved > 0
+                  ? `$${Math.round(totalTimeSaved * 40).toLocaleString()}`
+                  : "$0"}
+              </p>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Contracts List */}
@@ -287,6 +346,24 @@ export const Dashboard: React.FC = () => {
                     formatDate={formatDate}
                     getStatusBadge={getStatusBadge}
                   />
+
+                  {/* Time Saved Meter */}
+                  {selectedContract.time_saved_hours &&
+                    selectedContract.status === "processed" && (
+                      <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg shadow-lg p-6 border-2 border-green-200">
+                        <div className="flex items-center justify-center">
+                          <TimeSavedMeter
+                            timeSavedHours={selectedContract.time_saved_hours}
+                          />
+                        </div>
+                        <div className="text-center mt-3">
+                          <p className="text-sm text-gray-600">
+                            🎉 Contract processing complete! Your automation ROI
+                            is showing.
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
                   {/* Revenue Schedule */}
                   <RevenueScheduleTable

@@ -6,6 +6,7 @@ import {
   LightningIcon,
   ChartIcon,
   CalendarIcon,
+  LightningBoltIcon,
 } from "../assets/icons";
 
 interface UploadPageProps {
@@ -108,29 +109,9 @@ export const UploadPage: React.FC<UploadPageProps> = ({ onUploadSuccess }) => {
           {/* Magic happens here section */}
           <div className="mt-8 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
             <div className="flex items-center justify-center space-x-2 text-purple-700">
-              <svg
-                className="w-5 h-5 animate-pulse"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
-                  clipRule="evenodd"
-                />
-              </svg>
+              <LightningBoltIcon className="w-5 h-5 animate-pulse" />
               <span className="text-sm font-medium">AI Magic Happens Here</span>
-              <svg
-                className="w-5 h-5 animate-pulse"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
-                  clipRule="evenodd"
-                />
-              </svg>
+              <LightningBoltIcon className="w-5 h-5 animate-pulse" />
             </div>
             <p className="text-xs text-purple-600 text-center mt-1">
               Contract analysis • ASC 606 compliance • Revenue recognition •

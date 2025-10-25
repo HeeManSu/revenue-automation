@@ -11,6 +11,7 @@ export interface Contract {
   start_date?: string;
   end_date?: string;
   status: string;
+  time_saved_hours?: number;
   created_at: string;
   updated_at: string;
 }
@@ -50,6 +51,7 @@ export interface ContractStatus {
   customer_name?: string;
   total_value?: number;
   currency?: string;
+  time_saved_hours?: number;
 }
 
 export class ApiService {
